@@ -1,13 +1,15 @@
-import React from 'react';
-import TasteLinkPage from './TasteLinkPage'; // ⚠️ 여기 슬래시는 앞에 점 꼭 붙이기! (‘./’)
-console.log("ENV KEY =", process.env.REACT_APP_KAKAO_APPKEY);
+import { Routes, Route } from "react-router-dom";
+import TasteLinkPage from "./TasteLinkPage";
+import PlaceFinderPage from "./pages/PlaceFinderPage"; // 새로 만들 파일
 
-function App() {
+export default function App() {
   return (
-    <div>
-      <TasteLinkPage />
-    </div>
+    <Routes>
+      {/* 메인 페이지 */}
+      <Route path="/" element={<TasteLinkPage />} />
+
+      {/* 지도/검색 페이지 */}
+      <Route path="/places" element={<PlaceFinderPage />} />
+    </Routes>
   );
 }
-
-export default App;

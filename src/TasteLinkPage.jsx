@@ -1,4 +1,5 @@
 import { Search, Bell, BookmarkPlus, Info, Trash2, ChevronDown, User } from "lucide-react";
+import {Link} from "react-router-dom";
 
 // Default export so the canvas can preview it
 export default function TasteLinkPage() {
@@ -65,6 +66,9 @@ export default function TasteLinkPage() {
             <ToolbarIcon icon={Bell} label="모집글 수정" />
             <ToolbarIcon icon={Info} label="상세 정보" />
             <ToolbarIcon icon={Trash2} label="모집글 삭제" />
+            <Link to="/places" className="self-center rounded-full border px-3 py-2 hover:bg-gray-50">
+              맛집 찾기
+            </Link>
           </nav>
 
           <button className="ml-4 inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm">
@@ -94,9 +98,13 @@ export default function TasteLinkPage() {
             <br />
             지금 바로 모임을 신청해보세요!
           </p>
-          <button className="mt-8 rounded-md bg-rose-300 hover:bg-rose-400 transition-colors px-8 py-3 text-white font-medium">
-            신청하기
-          </button>
+          <Link
+              to="/places"
+              className="mt-8 inline-block rounded-md bg-rose-300 hover:bg-rose-400 transition-colors px-8 py-3 text-white font-medium"
+            >
+              맛집 찾기
+            </Link>
+
         </div>
       </section>
 
