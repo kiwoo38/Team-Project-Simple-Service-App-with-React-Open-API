@@ -1,155 +1,191 @@
-import { Search, Bell, BookmarkPlus, Info, Trash2, ChevronDown, User } from "lucide-react";
+import { useEffect, useState } from "react";
+import { User } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
 
-// Default export so the canvas can preview it
+const API_URL = "https://68f1a345b36f9750dee9d045.mockapi.io/api/v1/posts";
+
 export default function TasteLinkPage() {
-  const categories = [
-    {
-      title: "스시",
-      people: "3/4",
-      img: "https://images.unsplash.com/photo-1544025162-d76694265947?q=80&w=1400&auto=format&fit=crop",
-      badge: false,
-    },
-    {
-      title: "고기",
-      people: "3/4",
-      img: "https://images.unsplash.com/photo-1604908176997-431a1a5b9a5a?q=80&w=1400&auto=format&fit=crop",
-      badge: false,
-    },
-    {
-      title: "찌개",
-      people: "2/8",
-      img: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=1400&auto=format&fit=crop",
-      badge: false,
-    },
-    {
-      title: "스시",
-      people: "3/8",
-      img: "https://images.unsplash.com/photo-1607301405390-6f2da0b3a8af?q=80&w=1400&auto=format&fit=crop",
-      badge: true,
-    },
-    {
-      title: "스테이크",
-      people: "1/5",
-      img: "https://images.unsplash.com/photo-1551183053-bf91a1d81141?q=80&w=1400&auto=format&fit=crop",
-      badge: true,
-    },
-    {
-      title: "회",
-      people: "3/6",
-      img: "https://images.unsplash.com/photo-1580554530778-ca36943938ce?q=80&w=1400&auto=format&fit=crop",
-      badge: false,
-    },
-  ];
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true); // ✅ 로딩 상태 추가
+  const [currentPage, setCurrentPage] = useState(1);
+  const postsPerPage = 6;
+  const navigate = useNavigate();
+  const location = useLocation(); // ✅ 현재 경로 감지용
+
+  // ✅ 데이터 불러오기 (경로가 바뀔 때마다 다시 실행)
+  useEffect(() => {
+    setLoading(true);
+    fetch(API_URL)
+      .then((res) => res.json())
+      .then((data) => {
+        const sorted = data.sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+        );
+        setPosts(sorted);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("데이터 불러오기 실패:", err);
+        setLoading(false);
+      });
+  }, [location.pathname]); // ✅ pathname이 바뀌면 다시 fetch
+
+  // ✅ 페이지 계산
+  const indexOfLast = currentPage * postsPerPage;
+  const indexOfFirst = indexOfLast - postsPerPage;
+  const currentPosts = posts.slice(indexOfFirst, indexOfLast);
+  const totalPages = Math.ceil(posts.length / postsPerPage);
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      {/* Top Bar */}
-      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur border-b">
-        <div className="mx-auto max-w-6xl px-4 py-4 flex items-center gap-4">
-          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
+      {/* 상단바 */}
+      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b">
+        <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
+          <h1
+            onClick={() => navigate("/")}
+            className="text-2xl sm:text-3xl font-semibold cursor-pointer hover:text-rose-400 transition-colors"
+          >
             Taste Link <span className="text-gray-500">“취향을 잇다”</span>
           </h1>
-
-          <div className="ml-auto hidden md:flex items-center gap-2 flex-1 max-w-xl">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                className="w-full rounded-full border border-gray-300 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10"
-                placeholder="오늘은 뭐 먹지? 검색 필터(지역,식당이름)"
-              />
-            </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate("/")}
+              className="text-sm px-3 py-1 border rounded-full hover:bg-gray-100 transition"
+            >
+              모집글 목록
+            </button>
+            <button
+              onClick={() => navigate("/create")}
+              className="text-sm px-3 py-1 border rounded-full bg-rose-300 hover:bg-rose-400 text-white transition"
+            >
+              모집글 등록
+            </button>
+            <button className="ml-2 rounded-full border p-2">
+              <User className="h-5 w-5" />
+            </button>
           </div>
-
-          <nav className="ml-auto grid grid-cols-4 gap-6 text-center text-xs">
-            <ToolbarIcon icon={BookmarkPlus} label="모집글 등록" />
-            <ToolbarIcon icon={Bell} label="모집글 수정" />
-            <ToolbarIcon icon={Info} label="상세 정보" />
-            <ToolbarIcon icon={Trash2} label="모집글 삭제" />
-          </nav>
-
-          <button className="ml-4 inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm">
-            내 지역
-            <ChevronDown className="h-4 w-4" />
-          </button>
-
-          <button className="ml-2 rounded-full border p-2"><User className="h-5 w-5"/></button>
         </div>
       </header>
 
-      {/* Hero */}
+      {/* Hero 섹션 */}
       <section className="mx-auto max-w-6xl px-4 mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
         <div className="aspect-[4/3] w-full overflow-hidden rounded-xl border">
-          {/* Replace with your own hero image if desired */}
           <img
             src="https://images.unsplash.com/photo-1514517220031-f9f0d036f114?q=80&w=1600&auto=format&fit=crop"
             alt="식사하는 가족"
             className="h-full w-full object-cover"
           />
         </div>
+
         <div className="flex flex-col items-center md:items-start text-center md:text-left">
-          <p className="text-[#ff824d] font-semibold">“당신의 한 끼가 추억이 되는 순간”</p>
+          <p className="text-[#ff824d] font-semibold">
+            “당신의 한 끼가 추억이 되는 순간”
+          </p>
           <p className="mt-1 text-[#ff824d]">Taste Link에서 함께 만들어가요.</p>
           <p className="mt-6 text-gray-600 leading-relaxed">
             “좋은 사람 × 좋은 음식 × 행복한 시간”
             <br />
             지금 바로 모임을 신청해보세요!
           </p>
-          <button className="mt-8 rounded-md bg-rose-300 hover:bg-rose-400 transition-colors px-8 py-3 text-white font-medium">
-            신청하기
+
+          <button
+            onClick={() => navigate("/create")}
+            className="mt-8 rounded-md bg-rose-300 hover:bg-rose-400 transition-colors px-8 py-3 text-white font-medium"
+          >
+            모집글 등록하러 가기
           </button>
         </div>
       </section>
 
-      {/* Category Grid */}
+      {/* 카드 리스트 */}
       <main className="mx-auto max-w-6xl px-4 mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-        {categories.map((c, i) => (
-          <Card key={i} {...c} />
-        ))}
+        {loading ? (
+          <p className="col-span-full text-center text-gray-500">
+            불러오는 중...
+          </p>
+        ) : currentPosts.length > 0 ? (
+          currentPosts.map((p) => (
+            <Card
+              key={p.id}
+              id={p.id}
+              title={p.title}
+              writer={p.writer}
+              members={p.members}
+              likes={p.likes}
+              img={p.image}
+              paymentMethod={p.paymentMethod}
+            />
+          ))
+        ) : (
+          <p className="col-span-full text-center text-gray-500">
+            등록된 모집글이 없습니다.
+          </p>
+        )}
       </main>
 
-      {/* Footer */}
-      <footer className="mx-auto max-w-6xl px-4">
-        <div className="border-t mt-16 pt-6 pb-16 text-sm text-gray-500 flex items-center justify-between">
-          <span>Taste Link “취향을 잇다”</span>
-          <div className="flex items-center gap-4 opacity-70">
-            <span className="sr-only">socials</span>
-            <div className="h-2 w-2 rounded-full bg-gray-400" />
-            <div className="h-2 w-2 rounded-full bg-gray-400" />
-            <div className="h-2 w-2 rounded-full bg-gray-400" />
+      {/* 페이지 버튼 */}
+      <div className="flex justify-center items-center gap-2 mt-10 mb-10">
+        {Array.from({ length: totalPages }, (_, i) => (
+          <button
+            key={i}
+            onClick={() => setCurrentPage(i + 1)}
+            className={`px-4 py-2 rounded-full border ${
+              currentPage === i + 1
+                ? "bg-rose-400 text-white"
+                : "bg-white text-gray-600 hover:bg-gray-100"
+            } transition`}
+          >
+            {i + 1}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ✅ 카드 컴포넌트
+function Card({ id, title, writer, members, likes, img, paymentMethod }) {
+  const navigate = useNavigate();
+
+  const imageSrc =
+    typeof img === "string" && img.startsWith("http")
+      ? img
+      : "https://picsum.photos/seed/default/600/400";
+
+  return (
+    <article
+      onClick={() => navigate(`/post/${id}`)}
+      className="cursor-pointer rounded-xl border overflow-hidden hover:shadow-md transition-shadow bg-white"
+    >
+      <div className="w-full aspect-[4/3] overflow-hidden bg-gray-100">
+        <img
+          src={imageSrc}
+          alt={title}
+          loading="lazy"
+          className="w-full h-auto block object-cover"
+          onError={(e) => {
+            if (!e.target.src.includes("default")) {
+              e.target.src = "https://picsum.photos/seed/default/600/400";
+            }
+          }}
+        />
+      </div>
+
+      {paymentMethod && (
+        <div className="p-4 pb-0">
+          <div className="inline-block bg-white border px-3 py-1 rounded-full text-[11px] font-semibold text-gray-700 shadow-sm">
+            💳 {paymentMethod}
           </div>
         </div>
-      </footer>
-    </div>
-  );
-}
+      )}
 
-function ToolbarIcon({ icon: Icon, label }) {
-  return (
-    <div className="group">
-      <div className="mx-auto h-10 w-10 grid place-items-center rounded-lg border hover:bg-gray-50 transition-colors">
-        <Icon className="h-5 w-5" />
-      </div>
-      <div className="mt-1 text-gray-700">{label}</div>
-    </div>
-  );
-}
-
-function Card({ title, people, img, badge }) {
-  return (
-    <article className="rounded-xl border overflow-hidden hover:shadow-md transition-shadow">
-      <div className="relative aspect-[4/3] w-full overflow-hidden">
-        <img src={img} alt={title} className="h-full w-full object-cover" />
-        {badge && (
-          <div className="absolute -right-2 -top-2 rotate-6">
-            <div className="rounded-full bg-orange-200 px-3 py-1 text-[10px] font-bold text-orange-700 shadow">
-              ✶✶ 2025
-            </div>
-          </div>
-        )}
-      </div>
-      <div className="p-4">
+      <div className="p-4 pt-2">
         <h3 className="text-base font-semibold">{title}</h3>
-        <p className="mt-1 text-sm text-gray-500">모집 인원 ({people})</p>
+        <p className="text-sm text-gray-500 mt-1">작성자: {writer}</p>
+        <p className="text-sm text-gray-500">모집 인원: {members}명</p>
+        <div className="flex items-center justify-between mt-2 text-sm text-gray-600">
+          <span>❤️ {likes}</span>
+        </div>
       </div>
     </article>
   );
