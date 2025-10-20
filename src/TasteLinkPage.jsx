@@ -77,9 +77,9 @@ export default function TasteLinkPage() {
       <section className="mx-auto max-w-6xl px-4 mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
         <div className="aspect-[4/3] w-full overflow-hidden rounded-xl border">
           <img
-            src="https://images.unsplash.com/photo-1514517220031-f9f0d036f114?q=80&w=1600&auto=format&fit=crop"
-            alt="식사하는 가족"
-            className="h-full w-full object-cover"
+            src="https://cdn.pixabay.com/photo/2017/08/07/11/14/people-2602736_1280.jpg"
+            alt="식사하는 모습"
+            className="w-full h-full object-cover brightness-90"
           />
         </div>
 
