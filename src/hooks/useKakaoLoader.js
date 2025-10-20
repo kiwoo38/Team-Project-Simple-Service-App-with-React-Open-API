@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 
-export default function useKakaoLoader(appKey) {
+export default function useKakaoLoader() {
   const [ready, setReady] = useState(false);
+  const appKey = process.env.REACT_APP_KAKAO_APPKEY;
 
   useEffect(() => {
     if (!appKey) {
@@ -9,10 +10,8 @@ export default function useKakaoLoader(appKey) {
       return;
     }
 
-    // 이미 로드됨
     if (window.kakao?.maps) { setReady(true); return; }
 
-    // 중복 로드 방지
     const exist = document.getElementById("kakao-sdk");
     if (exist) {
       exist.onload = () => window.kakao?.maps?.load?.(() => setReady(true));

@@ -5,7 +5,7 @@ import PostCreatePage from "./components1/PostCreatePage";
 import { seedPosts } from "./components1/SeedPosts";
 import PostDetailPage from "./components1/PostDetailPage";
 import PostEditPage from "./components1/PostEditPage";
-
+import MapPage from "./components2/KakaoMap";
 
 
 // ✅ 앱 처음 켜질 때 한 번만 시드 실행 (원하면 주석처리 가능)
@@ -24,7 +24,7 @@ function App() {
         <Route path="/create" element={<PostCreatePage />} />
         <Route path="/post/:id" element={<PostDetailPage />} />
         <Route path="/post/:id/edit" element={<PostEditPage />} /> 
-
+        <Route path="/map" element={<MapPage />} />
       </Routes>
     </Router>
   );

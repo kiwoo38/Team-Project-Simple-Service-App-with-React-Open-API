@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { User } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-
+import {Link} from "react-router-dom";
 const API_URL = "https://68f1a345b36f9750dee9d045.mockapi.io/api/v1/posts";
 
 export default function TasteLinkPage() {
@@ -54,6 +54,12 @@ export default function TasteLinkPage() {
             >
               모집글 목록
             </button>
+            <Link
+              to="/map"
+              className="text-sm px-3 py-1 border rounded-full hover:bg-gray-100 transition"
+              >
+                지도 보기 
+              </Link>
             <button
               onClick={() => navigate("/create")}
               className="text-sm px-3 py-1 border rounded-full bg-rose-300 hover:bg-rose-400 text-white transition"
