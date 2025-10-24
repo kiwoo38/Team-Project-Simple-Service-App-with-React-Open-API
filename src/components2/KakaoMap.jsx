@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import useKakaoLoader from "../hooks/useKakaoLoader";
 
 export default function MapPage() {
+  const navigate = useNavigate();
   const ready = useKakaoLoader(process.env.REACT_APP_KAKAO_APPKEY);
   const mapEl = useRef(null);
   const [map, setMap] = useState(null);
-  const [info, setInfo] = useState(null);          // ✅ 인포윈도우 재사용
+  const [info, setInfo] = useState(null); // ✅ 인포윈도우 재사용
   const [keyword, setKeyword] = useState("");
   const [results, setResults] = useState([]);
-  const [current, setCurrent] = useState(null);     // ✅ 선택된 장소(상세 패널용)
+  const [current, setCurrent] = useState(null); // ✅ 선택된 장소(상세 패널용)
 
   // 지도 초기화
   useEffect(() => {
@@ -58,7 +60,7 @@ export default function MapPage() {
       map.__markers = markers;
       map.setBounds(bounds);
       setResults(data);
-      setCurrent(null);   // 새 검색 시 상세 패널 초기화
+      setCurrent(null); // 새 검색 시 상세 패널 초기화
       info?.close();
     });
   };
@@ -96,13 +98,24 @@ export default function MapPage() {
         <div style="padding:8px 10px; max-width:240px;">
           <div style="font-weight:700; margin-bottom:4px;">${placeName}</div>
           <div style="font-size:12px; color:#666; margin-bottom:8px;">${addr}</div>
-          <a href="/create?${q}"
-             style="display:inline-block; padding:6px 10px; border-radius:6px; background:#111; color:#fff; text-decoration:none;">
+          <button id="go-create"
+            style="display:inline-block; padding:6px 10px; border-radius:6px; background:#111; color:#fff; border:none; cursor:pointer;">
             이 장소로 모집글 작성
-          </a>
+          </button>
         </div>`;
       info.setContent(content);
       info.open(map, mk);
+
+      // ✅ 버튼 클릭 시 React Router로 이동
+      setTimeout(() => {
+        const btn = document.getElementById("go-create");
+        if (btn) {
+          btn.onclick = (e) => {
+            e.preventDefault();
+            navigate(`/create?${q}`);
+          };
+        }
+      }, 0);
     }
 
     // ✅ 하단 상세 패널에 뿌릴 현재 선택 장소 저장
@@ -120,10 +133,23 @@ export default function MapPage() {
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           placeholder="장소/음식 키워드 검색"
-          style={{ flex: 1, padding: "10px 12px", border: "1px solid #ddd", borderRadius: 8 }}
+          style={{
+            flex: 1,
+            padding: "10px 12px",
+            border: "1px solid #ddd",
+            borderRadius: 8,
+          }}
           onKeyDown={(e) => e.key === "Enter" && search()}
         />
-        <button onClick={search} style={{ padding: "10px 14px", borderRadius: 8, background: "black", color: "#fff" }}>
+        <button
+          onClick={search}
+          style={{
+            padding: "10px 14px",
+            borderRadius: 8,
+            background: "black",
+            color: "#fff",
+          }}
+        >
           검색
         </button>
       </div>
@@ -133,15 +159,25 @@ export default function MapPage() {
 
       {/* 검색 결과 리스트 */}
       <div style={{ maxHeight: 200, overflow: "auto", borderTop: "1px solid #eee" }}>
-        {results.length === 0 && <div style={{ padding: 10, color: "#777" }}>검색 결과가 여기에 표시됩니다.</div>}
+        {results.length === 0 && (
+          <div style={{ padding: 10, color: "#777" }}>
+            검색 결과가 여기에 표시됩니다.
+          </div>
+        )}
         {results.map((p) => (
           <div
             key={p.id}
             onClick={() => focus(p)}
-            style={{ padding: 10, borderBottom: "1px solid #f5f5f5", cursor: "pointer" }}
+            style={{
+              padding: 10,
+              borderBottom: "1px solid #f5f5f5",
+              cursor: "pointer",
+            }}
           >
             <div style={{ fontWeight: 600 }}>{p.place_name}</div>
-            <div style={{ fontSize: 12, color: "#666" }}>{p.road_address_name || p.address_name}</div>
+            <div style={{ fontSize: 12, color: "#666" }}>
+              {p.road_address_name || p.address_name}
+            </div>
             <div style={{ fontSize: 12, color: "#888" }}>{p.category_name}</div>
           </div>
         ))}
@@ -149,16 +185,38 @@ export default function MapPage() {
 
       {/* ✅ 하단 상세 패널 (선택 시 표시) */}
       {current && (
-        <div style={{ borderTop: "1px solid #eee", padding: 12, background: "#fff" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 12, flexWrap: "wrap" }}>
+        <div
+          style={{
+            borderTop: "1px solid #eee",
+            padding: 12,
+            background: "#fff",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "start",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
             <div style={{ minWidth: 240 }}>
-              <div style={{ fontWeight: 700, fontSize: 16 }}>{current.place_name}</div>
+              <div style={{ fontWeight: 700, fontSize: 16 }}>
+                {current.place_name}
+              </div>
               <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>
                 {current.road_address_name || current.address_name}
               </div>
               {current.phone && (
                 <div style={{ fontSize: 12, color: "#444", marginTop: 6 }}>
-                  전화: <a href={`tel:${current.phone}`} style={{ textDecoration: "underline" }}>{current.phone}</a>
+                  전화:{" "}
+                  <a
+                    href={`tel:${current.phone}`}
+                    style={{ textDecoration: "underline" }}
+                  >
+                    {current.phone}
+                  </a>
                 </div>
               )}
               {current.category_name && (
@@ -173,24 +231,43 @@ export default function MapPage() {
               {current.place_url && (
                 <a
                   href={current.place_url}
-                  target="_blank" rel="noreferrer"
-                  style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #ddd" }}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    border: "1px solid #ddd",
+                  }}
                 >
                   카카오 상세보기
                 </a>
               )}
+
               {/* 글 작성으로 바로 연결 (쿼리스트링 전달) */}
-              <a
-                href={`/create?${new URLSearchParams({
-                  name: current.place_name || "",
-                  addr: current.road_address_name || current.address_name || "",
-                  lat: String(current.y || ""),
-                  lng: String(current.x || "")
-                }).toString()}`}
-                style={{ padding: "8px 12px", borderRadius: 8, background: "#111", color: "#fff" }}
+              <button
+                onClick={() => {
+                  const qs = new URLSearchParams({
+                    name: current.place_name || "",
+                    addr:
+                      current.road_address_name ||
+                      current.address_name ||
+                      "",
+                    lat: String(current.y || ""),
+                    lng: String(current.x || ""),
+                  }).toString();
+                  navigate(`/create?${qs}`);
+                }}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 8,
+                  background: "#111",
+                  color: "#fff",
+                  border: "none",
+                  cursor: "pointer",
+                }}
               >
                 이 장소로 모집글 작성
-              </a>
+              </button>
             </div>
           </div>
         </div>

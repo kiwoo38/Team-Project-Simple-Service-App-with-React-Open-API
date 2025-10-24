@@ -8,6 +8,8 @@ import PostEditPage from "./components1/PostEditPage";
 import MapPage from "./components2/KakaoMap";
 
 
+
+
 // ✅ 앱 처음 켜질 때 한 번만 시드 실행 (원하면 주석처리 가능)
 seedPosts();
 
