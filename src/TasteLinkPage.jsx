@@ -44,12 +44,13 @@ export default function TasteLinkPage() {
       {/* 상단바 */}
       <header className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b">
         <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
-          <h1
-            onClick={() => navigate("/")}
-            className="text-2xl sm:text-3xl font-semibold cursor-pointer hover:text-rose-400 transition-colors"
-          >
-            Taste Link <span className="text-gray-500">“취향을 잇다”</span>
-          </h1>
+          <Link to="/" className="flex items-center gap-3 group">
+            <img src="/mainLogo.png" alt="Taste Link 로고" className="w-auto h-10 object-contain" />
+            <span className="text-2xl sm:text-3xl font-semibold group-hover:text-rose-400 transition-colors">
+              Taste Link <span className="text-gray-500">“취향을 잇다”</span>
+            </span>
+          </Link>
+
           <div className="flex items-center gap-2">
             <button
               onClick={() => navigate("/")}
