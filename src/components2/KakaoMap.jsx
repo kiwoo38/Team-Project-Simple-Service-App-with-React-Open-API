@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { User } from "lucide-react";
 import useKakaoLoader from "../hooks/useKakaoLoader";
 
 export default function MapPage() {
@@ -126,8 +127,54 @@ export default function MapPage() {
   const focus = (p) => openPlace(p, null);
 
   return (
-    <div style={{ height: "100vh", display: "grid", gridTemplateRows: "auto 1fr auto" }}>
-      {/* 상단 검색바 */}
+    <div
+      style={{
+        height: "100vh",
+        display: "grid",
+        gridTemplateRows: "auto auto 1fr auto auto", // 헤더, 검색바, 지도, 결과, 상세
+      }}
+    >
+      {/* ✅ 공통 홈바 */}
+      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b">
+        <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-3 group">
+            <img
+              src="/mainLogo.png"
+              alt="Taste Link 로고"
+              className="w-auto h-10 object-contain"
+            />
+            <span className="text-2xl sm:text-3xl font-semibold group-hover:text-rose-400 transition-colors">
+              Taste Link <span className="text-gray-500">“취향을 잇다”</span>
+            </span>
+          </Link>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate("/")}
+              className="text-sm px-3 py-1 border rounded-full hover:bg-gray-100 transition"
+            >
+              모집글 목록
+            </button>
+            <Link
+              to="/map"
+              className="text-sm px-3 py-1 border rounded-full hover:bg-gray-100 transition"
+            >
+              지도 보기
+            </Link>
+            <button
+              onClick={() => navigate("/create")}
+              className="text-sm px-3 py-1 border rounded-full bg-rose-300 hover:bg-rose-400 text-white transition"
+            >
+              모집글 등록
+            </button>
+            <button className="ml-2 rounded-full border p-2">
+              <User className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* 🔎 상단 검색바 */}
       <div style={{ padding: 12, display: "flex", gap: 8, borderBottom: "1px solid #eee" }}>
         <input
           value={keyword}
@@ -154,10 +201,10 @@ export default function MapPage() {
         </button>
       </div>
 
-      {/* 지도 */}
+      {/* 🗺️ 지도 */}
       <div ref={mapEl} style={{ width: "100%", height: "100%" }} />
 
-      {/* 검색 결과 리스트 */}
+      {/* 📜 검색 결과 리스트 */}
       <div style={{ maxHeight: 200, overflow: "auto", borderTop: "1px solid #eee" }}>
         {results.length === 0 && (
           <div style={{ padding: 10, color: "#777" }}>
