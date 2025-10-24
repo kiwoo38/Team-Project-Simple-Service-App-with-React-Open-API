@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { User } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Link } from "react-router-dom";
+import AutoBanner from "./components1/AutoBanner";
+
+
 const API_URL = "https://68f1a345b36f9750dee9d045.mockapi.io/api/v1/posts";
 
 export default function TasteLinkPage() {
@@ -74,39 +77,7 @@ export default function TasteLinkPage() {
       </header>
 
       {/* 🔸 메인 중앙 배너 */}
-      <section className="max-w-6xl mx-auto mt-8 rounded-3xl bg-pink-50 flex flex-col md:flex-row items-center justify-between px-6 py-14 text-gray-800 shadow-sm">
-        {/* 왼쪽 이미지 */}
-        <img
-          src="https://cdn.pixabay.com/photo/2017/08/07/11/14/people-2602736_1280.jpg"
-          alt="함께 식사하는 사람들"
-          className="w-72 md:w-[400px] rounded-2xl object-cover shadow-md mb-8 md:mb-0"
-        />
-
-        {/* 오른쪽 문구 */}
-        <div className="flex flex-col items-center md:items-start text-center md:text-left gap-3 md:gap-4 md:pl-10">
-          <h2 className="text-2xl md:text-3xl font-semibold tracking-tight">
-            당신의 한 끼가 추억이 되는 순간
-          </h2>
-          <p className="text-lg md:text-xl font-light opacity-90">
-            Taste Link에서 함께 만들어가요.
-          </p>
-          <p className="text-base md:text-lg italic text-gray-600 mt-2">
-            “좋은 사람 × 좋은 음식 × 행복한 시간”
-          </p>
-          <p className="text-sm md:text-base mt-1 text-gray-500">
-            지금 바로 모임을 신청해보세요!
-          </p>
-
-          {/* 모집글 등록 버튼 */}
-          <button
-            onClick={() => window.location.href = "/create"}
-            className="mt-5 bg-white text-pink-500 font-semibold px-6 py-3 rounded-xl shadow hover:bg-pink-50 transition"
-          >
-            모집글 등록하기
-          </button>
-        </div>
-      </section>
-
+      <AutoBanner />
 
       {/* 카드 리스트 */}
       <main className="mx-auto max-w-6xl px-4 mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
