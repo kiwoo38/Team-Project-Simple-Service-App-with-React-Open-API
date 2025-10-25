@@ -40,6 +40,67 @@ export default function TasteLinkPage() {
   const currentPosts = posts.slice(indexOfFirst, indexOfLast);
   const totalPages = Math.ceil(posts.length / postsPerPage);
 
+  // ---------------------
+  // ❤️ 좋아요 기능 추가
+  // ---------- 교체할 코드 시작 ----------
+  const toInt = (v) => {
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const hasLiked = (id) => sessionStorage.getItem(`liked_${id}`) === "1";
+  const markLiked = (id) => sessionStorage.setItem(`liked_${id}`, "1");
+
+  const handleLike = async (id) => {
+    if (hasLiked(id)) return;
+
+    // 대상 포스트(전체 객체) 확보
+    const target = posts.find((p) => String(p.id) === String(id));
+    if (!target) {
+      console.warn("대상 포스트를 찾지 못했어요:", id);
+      return;
+    }
+    const newLikes = toInt(target.likes) + 1;
+
+    // 1) 낙관적 업데이트
+    setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, likes: newLikes } : p)));
+
+    try {
+      // 2) 서버 반영 (PUT: 전체 객체 교체)
+      const url = `${API_URL}/${encodeURIComponent(id)}`;
+      const payload = { ...target, likes: newLikes }; // 전체 보내기
+
+      const res = await fetch(url, {
+        method: "PUT",                 // ✅ PATCH → PUT
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`PUT 실패 status=${res.status} body=${text}`);
+      }
+
+      // 서버가 돌려준 최신 데이터로 동기화(타입 차이 방지)
+      const saved = await res.json().catch(() => null);
+      if (saved && typeof saved === "object") {
+        setPosts((prev) => prev.map((p) => (p.id === id ? saved : p)));
+      }
+
+      markLiked(id);
+    } catch (err) {
+      console.error("좋아요 반영 실패:", err);
+      // 3) 롤백
+      setPosts((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, likes: toInt(target.likes) } : p))
+      );
+      alert("좋아요 처리에 실패했어요. 잠시 후 다시 시도해주세요.");
+    }
+  };
+  
+
+  
+
   return (
     <div className="min-h-screen bg-white text-gray-900">
       {/* 상단바 */}
@@ -120,6 +181,7 @@ export default function TasteLinkPage() {
               paymentMethod={p.paymentMethod}
               attendees={p.attendees}                                 // ✅ 추가: 참석 배열
               capacity={p.capacity ?? p.maxMembers ?? p.membersLimit}  // ✅ 추가: 정원 후보 키들
+              onLike={handleLike}                                      // ✅ 추가: 좋아요 핸들러 전달
             />
           ))
         ) : (
@@ -159,6 +221,7 @@ function Card({
   paymentMethod,
   attendees,   // ✅ 추가
   capacity,    // ✅ 추가
+  onLike,      // ✅ 추가
 }) {
   const navigate = useNavigate();
 
@@ -239,8 +302,21 @@ function Card({
           </p>
         )}
 
-        <div className="flex items-center justify-between mt-2 text-sm text-gray-600">
-          <span>❤️ {likes}</span>
+        {/* ✅ 좋아요 영역: 버튼 + 실시간 카운트 */}
+        <div className="flex items-center justify-between mt-2 text-sm text-gray-700">
+          <button
+            onClick={(e) => {
+              e.stopPropagation(); // 카드 네비게이션 방지
+              onLike?.(id);
+            }}
+            className="inline-flex items-center gap-1 px-3 py-1 rounded-full border hover:bg-gray-50 active:scale-[0.98] transition"
+            aria-label="좋아요"
+          >
+            <span>❤️</span>
+            <span>좋아요</span>
+          </button>
+
+          <span className="select-none">❤️ {parseInt(likes ?? 0, 10) || 0}</span>
         </div>
       </div>
 
