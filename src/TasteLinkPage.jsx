@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { User } from "lucide-react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext";
 import AutoBanner from "./components1/AutoBanner";
 
@@ -15,6 +14,9 @@ export default function TasteLinkPage() {
   const navigate = useNavigate();
   const location = useLocation(); // ✅ 현재 경로 감지용
   const { isAuthed, user, logout } = useAuth(); // ✅ 추가: 인증 상태
+
+  // 로그인 사용자 식별자(원하는대로 바꿔도 됨: email 우선, 없으면 id)
+  const uid = isAuthed ? (user?.email || user?.id || null) : null;
 
   // ✅ 데이터 불러오기 (경로가 바뀔 때마다 다시 실행)
   useEffect(() => {
@@ -41,37 +43,57 @@ export default function TasteLinkPage() {
   const totalPages = Math.ceil(posts.length / postsPerPage);
 
   // ---------------------
-  // ❤️ 좋아요 기능 추가
-  // ---------- 교체할 코드 시작 ----------
+  // ❤️ 좋아요 기능 (계정별 1회 / 비로그인은 세션당 1회)
+  // ---------------------
   const toInt = (v) => {
     const n = parseInt(v, 10);
     return Number.isFinite(n) ? n : 0;
   };
 
-  const hasLiked = (id) => sessionStorage.getItem(`liked_${id}`) === "1";
-  const markLiked = (id) => sessionStorage.setItem(`liked_${id}`, "1");
+  // 사용자/세션 기준 이미 눌렀는지
+  const alreadyLiked = (post) => {
+    if (uid) {
+      return Array.isArray(post?.likedBy) && post.likedBy.includes(uid);
+    }
+    return sessionStorage.getItem(`liked_${post.id}`) === "1";
+  };
+
+  // 세션에만 표시(비로그인)
+  const markSessionLiked = (postId) => {
+    sessionStorage.setItem(`liked_${postId}`, "1");
+  };
 
   const handleLike = async (id) => {
-    if (hasLiked(id)) return;
-
     // 대상 포스트(전체 객체) 확보
     const target = posts.find((p) => String(p.id) === String(id));
     if (!target) {
       console.warn("대상 포스트를 찾지 못했어요:", id);
       return;
     }
-    const newLikes = toInt(target.likes) + 1;
+    if (alreadyLiked(target)) return; // 사용자/세션 기준 중복 방지
+
+    const prevLikes = toInt(target.likes);
+    const newLikes = prevLikes + 1;
+
+    // likedBy 업데이트 (로그인 사용자만 반영)
+    const nextLikedBy = uid
+      ? Array.from(new Set([...(target.likedBy || []), uid]))
+      : (target.likedBy || []);
 
     // 1) 낙관적 업데이트
-    setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, likes: newLikes } : p)));
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === id ? { ...p, likes: newLikes, likedBy: nextLikedBy } : p
+      )
+    );
 
     try {
-      // 2) 서버 반영 (PUT: 전체 객체 교체)
+      // 2) 서버 반영 (PUT: 전체 교체)
       const url = `${API_URL}/${encodeURIComponent(id)}`;
-      const payload = { ...target, likes: newLikes }; // 전체 보내기
+      const payload = { ...target, likes: newLikes, likedBy: nextLikedBy };
 
       const res = await fetch(url, {
-        method: "PUT",                 // ✅ PATCH → PUT
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -81,25 +103,25 @@ export default function TasteLinkPage() {
         throw new Error(`PUT 실패 status=${res.status} body=${text}`);
       }
 
-      // 서버가 돌려준 최신 데이터로 동기화(타입 차이 방지)
+      // 서버가 돌려준 최신 데이터로 동기화
       const saved = await res.json().catch(() => null);
       if (saved && typeof saved === "object") {
         setPosts((prev) => prev.map((p) => (p.id === id ? saved : p)));
       }
 
-      markLiked(id);
+      // 비로그인은 세션 차단 마킹
+      if (!uid) markSessionLiked(id);
     } catch (err) {
       console.error("좋아요 반영 실패:", err);
       // 3) 롤백
       setPosts((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, likes: toInt(target.likes) } : p))
+        prev.map((p) =>
+          p.id === id ? { ...p, likes: prevLikes, likedBy: target.likedBy } : p
+        )
       );
       alert("좋아요 처리에 실패했어요. 잠시 후 다시 시도해주세요.");
     }
   };
-  
-
-  
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
@@ -179,9 +201,11 @@ export default function TasteLinkPage() {
               likes={p.likes}
               img={p.image}
               paymentMethod={p.paymentMethod}
-              attendees={p.attendees}                                 // ✅ 추가: 참석 배열
-              capacity={p.capacity ?? p.maxMembers ?? p.membersLimit}  // ✅ 추가: 정원 후보 키들
-              onLike={handleLike}                                      // ✅ 추가: 좋아요 핸들러 전달
+              attendees={p.attendees}                                 // ✅ 참석 배열
+              capacity={p.capacity ?? p.maxMembers ?? p.membersLimit}  // ✅ 정원 후보 키들
+              likedBy={p.likedBy}                                      // ✅ 추가
+              uid={uid}                                                // ✅ 추가(버튼 비활성 표시용)
+              onLike={handleLike}                                      // ✅ 좋아요 핸들러
             />
           ))
         ) : (
@@ -219,9 +243,11 @@ function Card({
   likes,
   img,
   paymentMethod,
-  attendees,   // ✅ 추가
-  capacity,    // ✅ 추가
-  onLike,      // ✅ 추가
+  attendees,
+  capacity,
+  likedBy,     // ✅ 추가
+  uid,         // ✅ 추가
+  onLike,
 }) {
   const navigate = useNavigate();
 
@@ -256,6 +282,10 @@ function Card({
 
   // 꽉 찼는지
   const isFull = parsedCapacity ? currentAttendeeCount >= parsedCapacity : false;
+
+  // 이미 좋아요 눌렀는지(버튼 상태 표시용)
+  const already =
+    (uid && Array.isArray(likedBy) && likedBy.includes(uid)) || false;
 
   return (
     <article
@@ -307,13 +337,16 @@ function Card({
           <button
             onClick={(e) => {
               e.stopPropagation(); // 카드 네비게이션 방지
-              onLike?.(id);
+              if (!already) onLike?.(id);
             }}
-            className="inline-flex items-center gap-1 px-3 py-1 rounded-full border hover:bg-gray-50 active:scale-[0.98] transition"
+            disabled={already}
+            className={`inline-flex items-center gap-1 px-3 py-1 rounded-full border active:scale-[0.98] transition ${
+              already ? "opacity-60 cursor-not-allowed" : "hover:bg-gray-50"
+            }`}
             aria-label="좋아요"
           >
             <span>❤️</span>
-            <span>좋아요</span>
+            <span>{already ? "이미 좋아요" : "좋아요"}</span>
           </button>
 
           <span className="select-none">❤️ {parseInt(likes ?? 0, 10) || 0}</span>
