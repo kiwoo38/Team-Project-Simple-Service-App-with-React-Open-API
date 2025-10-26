@@ -1,4 +1,18 @@
 import React, { useState } from "react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  Button,
+  Stack,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Divider,
+} from "@mui/material";
 
 const API_URL = "https://68f1a345b36f9750dee9d045.mockapi.io/api/v1/posts";
 
@@ -7,10 +21,10 @@ export default function PostCreatePage() {
     writer: "",
     title: "",
     members: "",
-    likes: 0,          // ✅ 기본 0
+    likes: 0,
     createdAt: "",
-    eventDate: "",     // ✅ 추가
-    endAt: "",         // ✅ 추가
+    eventDate: "",
+    endAt: "",
     paymentMethod: "",
     image: "",
   });
@@ -18,50 +32,53 @@ export default function PostCreatePage() {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    // ✅ 숫자 필드 정규화
+    // 숫자 필드 정규화
     if (name === "members" || name === "likes") {
       const num = value === "" ? "" : Math.max(0, Number(value));
-      setForm({ ...form, [name]: num });
+      setForm((f) => ({ ...f, [name]: num }));
       return;
     }
 
-    // ✅ 이미지 입력 정리
+    // 이미지 입력 정리
     if (name === "image") {
-      let clean = value.trim();
-      clean = clean.replace(/^"+|"+$/g, "");
+      let clean = value.trim().replace(/^"+|"+$/g, "");
       if (clean && !clean.startsWith("http")) clean = "https://" + clean;
-      setForm({ ...form, [name]: clean });
+      setForm((f) => ({ ...f, [name]: clean }));
       return;
     }
 
-    // ✅ 날짜/기타 공통
-    setForm({ ...form, [name]: value });
+    // 그 외 공통
+    setForm((f) => ({ ...f, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // ✅ 날짜/로직 검증
+    // 날짜 검증
     const today0 = new Date();
     today0.setHours(0, 0, 0, 0);
+
     if (form.eventDate) {
       const ev = new Date(form.eventDate);
-      if (ev < today0) return alert("모임 날짜(eventDate)는 오늘 이후여야 해.");
+      if (ev < today0) {
+        alert("모임 날짜(eventDate)는 오늘 이후여야 해.");
+        return;
+      }
     }
     if (form.endAt && form.eventDate) {
       const end = new Date(form.endAt);
-      const ev  = new Date(form.eventDate);
-      if (end > ev) return alert("모집 마감일(endAt)은 모임 날짜(eventDate) 이전/동일이어야 해.");
+      const ev = new Date(form.eventDate);
+      if (end > ev) {
+        alert("모집 마감일(endAt)은 모임 날짜(eventDate) 이전/동일이어야 해.");
+        return;
+      }
     }
 
     const safeForm = {
       ...form,
-      // 숫자 보정
       members: form.members === "" ? 1 : Number(form.members),
       likes: form.likes === "" ? 0 : Number(form.likes),
-      // 빈 이미지 기본값
       image: form.image || "https://picsum.photos/seed/default/600/400",
-      // 날짜 ISO로 저장 (mockapi date 필드 호환)
       createdAt: new Date().toISOString(),
       eventDate: form.eventDate ? new Date(form.eventDate).toISOString() : null,
       endAt: form.endAt ? new Date(form.endAt).toISOString() : null,
@@ -87,99 +104,122 @@ export default function PostCreatePage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto mt-12 p-6 border rounded-xl">
-      <h2 className="text-2xl font-bold mb-6 text-center">✍️ 모집글 등록</h2>
+    <Box maxWidth={840} mx="auto" mt={6} px={2}>
+      <Card elevation={2} sx={{ borderRadius: 3 }}>
+        <CardContent>
+          <Typography variant="h5" fontWeight={700} align="center" gutterBottom>
+            ✍️ 모집글 등록
+          </Typography>
 
-      <form onSubmit={handleSubmit} className="grid gap-4">
-        <input
-          type="text"
-          name="writer"
-          placeholder="작성자"
-          value={form.writer}
-          onChange={handleChange}
-          className="border p-2 rounded"
-          required
-        />
+          <Box component="form" onSubmit={handleSubmit}>
+            <Stack spacing={2.5}>
+              <TextField
+                label="작성자"
+                name="writer"
+                value={form.writer}
+                onChange={handleChange}
+                required
+                fullWidth
+              />
 
-        <input
-          type="text"
-          name="title"
-          placeholder="제목"
-          value={form.title}
-          onChange={handleChange}
-          className="border p-2 rounded"
-          required
-        />
+              <TextField
+                label="제목"
+                name="title"
+                value={form.title}
+                onChange={handleChange}
+                required
+                fullWidth
+              />
 
-        <input
-          type="number"
-          name="members"
-          placeholder="모집 인원 (숫자)"
-          value={form.members}
-          onChange={handleChange}
-          className="border p-2 rounded"
-          min="1"
-          required
-        />
+              <TextField
+                label="모집 인원 (숫자)"
+                name="members"
+                type="number"
+                value={form.members}
+                onChange={handleChange}
+                required
+                inputProps={{ min: 1 }}
+                fullWidth
+              />
 
-        {/* ✅ 모집 마감일 */}
-        <label className="text-sm font-medium">모집 마감일 (endAt)</label>
-        <input
-          type="date"
-          name="endAt"
-          value={form.endAt}
-          onChange={handleChange}
-          className="border p-2 rounded"
-        />
+              <Divider sx={{ my: 1 }} />
 
-        {/* ✅ 모임 날짜 */}
-        <label className="text-sm font-medium">모임 날짜 (eventDate)</label>
-        <input
-          type="date"
-          name="eventDate"
-          value={form.eventDate}
-          onChange={handleChange}
-          className="border p-2 rounded"
-        />
+              {/* 모집 마감일 */}
+              <TextField
+                label="모집 마감일 (endAt)"
+                name="endAt"
+                type="date"
+                value={form.endAt}
+                onChange={handleChange}
+                InputLabelProps={{ shrink: true }}
+                fullWidth
+              />
 
-        <select
-          name="paymentMethod"
-          value={form.paymentMethod}
-          onChange={handleChange}
-          className="border p-2 rounded"
-          required
-        >
-          <option value="">결제 방식 선택</option>
-          <option value="n분의1">n분의1</option>
-          <option value="각자결제">각자결제</option>
-          <option value="선결제">선결제</option>
-        </select>
+              {/* 모임 날짜 */}
+              <TextField
+                label="모임 날짜 (eventDate)"
+                name="eventDate"
+                type="date"
+                value={form.eventDate}
+                onChange={handleChange}
+                InputLabelProps={{ shrink: true }}
+                fullWidth
+              />
 
-        {/* ✅ 이미지 주소 입력 + 미리보기 */}
-        <input
-          type="text"
-          name="image"
-          placeholder="이미지 주소 (예: https://cdn.pixabay.com/...jpg)"
-          value={form.image}
-          onChange={handleChange}
-          className="border p-2 rounded"
-        />
-        {form.image && (
-          <img
-            src={form.image}
-            alt="미리보기"
-            className="w-full max-h-60 object-cover rounded border"
-            onError={(e) => (e.currentTarget.style.display = "none")}
-          />
-        )}
+              <FormControl fullWidth required>
+                <InputLabel id="pm-label">결제 방식</InputLabel>
+                <Select
+                  labelId="pm-label"
+                  label="결제 방식"
+                  name="paymentMethod"
+                  value={form.paymentMethod}
+                  onChange={handleChange}
+                >
+                  <MenuItem value="">
+                    <em>선택</em>
+                  </MenuItem>
+                  <MenuItem value="n분의1">n분의1</MenuItem>
+                  <MenuItem value="각자결제">각자결제</MenuItem>
+                  <MenuItem value="선결제">선결제</MenuItem>
+                </Select>
+              </FormControl>
 
-        <button
-          type="submit"
-          className="mt-4 bg-rose-400 hover:bg-rose-500 text-white py-2 rounded transition"
-        >
-          등록하기
-        </button>
-      </form>
-    </div>
+              <TextField
+                label="이미지 주소 (예: https://cdn.pixabay.com/...jpg)"
+                name="image"
+                value={form.image}
+                onChange={handleChange}
+                fullWidth
+              />
+
+              {form.image && (
+                <Box
+                  component="img"
+                  src={form.image}
+                  alt="미리보기"
+                  sx={{
+                    width: "100%",
+                    maxHeight: 260,
+                    objectFit: "cover",
+                    borderRadius: 2,
+                    border: "1px solid rgba(0,0,0,0.12)",
+                  }}
+                  onError={(e) => (e.currentTarget.style.display = "none")}
+                />
+              )}
+
+              <Button
+                type="submit"
+                variant="contained"
+                size="large"
+                sx={{ py: 1.25 }}
+              >
+                등록하기
+              </Button>
+            </Stack>
+          </Box>
+        </CardContent>
+      </Card>
+    </Box>
   );
 }
