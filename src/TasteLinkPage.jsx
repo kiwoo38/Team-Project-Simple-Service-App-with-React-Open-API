@@ -1,86 +1,83 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { User } from "lucide-react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext";
 import AutoBanner from "./components1/AutoBanner";
 
-const API_URL = "https://68f1a345b36f9750dee9d045.mockapi.io/api/v1/posts";
+const POSTS_API = "https://68f1a345b36f9750dee9d045.mockapi.io/api/v1/posts";
 
 export default function TasteLinkPage() {
   const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true); // ✅ 로딩 상태 추가
+  const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const postsPerPage = 6;
   const navigate = useNavigate();
-  const location = useLocation(); // ✅ 현재 경로 감지용
-  const { isAuthed, user, logout } = useAuth(); // ✅ 추가: 인증 상태
-
-  // 로그인 사용자 식별자(원하는대로 바꿔도 됨: email 우선, 없으면 id)
+  const location = useLocation();
+  const { isAuthed, user, logout } = useAuth();
   const uid = isAuthed ? (user?.email || user?.id || null) : null;
 
-  // ✅ 데이터 불러오기 (경로가 바뀔 때마다 다시 실행)
+  // ✅ 프로필 팝오버 상태
+  const [showProfile, setShowProfile] = useState(false);
+  const profileRef = useRef(null);
+
+  // ✅ 외부 클릭 시 자동 닫기
   useEffect(() => {
-    setLoading(true);
-    fetch(API_URL)
-      .then((res) => res.json())
-      .then((data) => {
-        const sorted = data.sort(
+    const handleClickOutside = (e) => {
+      if (profileRef.current && !profileRef.current.contains(e.target)) {
+        setShowProfile(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // ✅ posts 불러오기
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+        const postRes = await fetch(POSTS_API);
+        const postData = await postRes.json();
+
+        // 최신순 정렬
+        const sorted = postData.sort(
           (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
         );
         setPosts(sorted);
-        setLoading(false);
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error("데이터 불러오기 실패:", err);
+      } finally {
         setLoading(false);
-      });
-  }, [location.pathname]); // ✅ pathname이 바뀌면 다시 fetch
+      }
+    }
+    fetchData();
+  }, [location.pathname]);
 
   // ✅ 페이지 계산
   const indexOfLast = currentPage * postsPerPage;
   const indexOfFirst = indexOfLast - postsPerPage;
-  const currentPosts = posts.slice(indexOfFirst, indexOfLast);
   const totalPages = Math.ceil(posts.length / postsPerPage);
 
-  // ---------------------
-  // ❤️ 좋아요 기능 (계정별 1회 / 비로그인은 세션당 1회)
-  // ---------------------
+  // ❤️ 좋아요 토글 기능
   const toInt = (v) => {
     const n = parseInt(v, 10);
     return Number.isFinite(n) ? n : 0;
   };
 
-  // 사용자/세션 기준 이미 눌렀는지
-  const alreadyLiked = (post) => {
-    if (uid) {
-      return Array.isArray(post?.likedBy) && post.likedBy.includes(uid);
-    }
-    return sessionStorage.getItem(`liked_${post.id}`) === "1";
-  };
-
-  // 세션에만 표시(비로그인)
-  const markSessionLiked = (postId) => {
-    sessionStorage.setItem(`liked_${postId}`, "1");
-  };
-
   const handleLike = async (id) => {
-    // 대상 포스트(전체 객체) 확보
     const target = posts.find((p) => String(p.id) === String(id));
-    if (!target) {
-      console.warn("대상 포스트를 찾지 못했어요:", id);
-      return;
-    }
-    if (alreadyLiked(target)) return; // 사용자/세션 기준 중복 방지
+    if (!target) return;
 
     const prevLikes = toInt(target.likes);
-    const newLikes = prevLikes + 1;
+    const likedBy = Array.isArray(target.likedBy) ? target.likedBy : [];
+    const hasLiked = uid ? likedBy.includes(uid) : false;
 
-    // likedBy 업데이트 (로그인 사용자만 반영)
-    const nextLikedBy = uid
-      ? Array.from(new Set([...(target.likedBy || []), uid]))
-      : (target.likedBy || []);
+    const newLikes = hasLiked ? Math.max(prevLikes - 1, 0) : prevLikes + 1;
+    const nextLikedBy = hasLiked
+      ? likedBy.filter((u) => u !== uid)
+      : [...likedBy, uid];
 
-    // 1) 낙관적 업데이트
+    // ✅ UI 즉시 반영
     setPosts((prev) =>
       prev.map((p) =>
         p.id === id ? { ...p, likes: newLikes, likedBy: nextLikedBy } : p
@@ -88,48 +85,34 @@ export default function TasteLinkPage() {
     );
 
     try {
-      // 2) 서버 반영 (PUT: 전체 교체)
-      const url = `${API_URL}/${encodeURIComponent(id)}`;
-      const payload = { ...target, likes: newLikes, likedBy: nextLikedBy };
-
-      const res = await fetch(url, {
+      // ✅ 서버 반영
+      const res = await fetch(`${POSTS_API}/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...target, likes: newLikes, likedBy: nextLikedBy }),
       });
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(`PUT 실패 status=${res.status} body=${text}`);
-      }
-
-      // 서버가 돌려준 최신 데이터로 동기화
-      const saved = await res.json().catch(() => null);
-      if (saved && typeof saved === "object") {
-        setPosts((prev) => prev.map((p) => (p.id === id ? saved : p)));
-      }
-
-      // 비로그인은 세션 차단 마킹
-      if (!uid) markSessionLiked(id);
+      if (!res.ok) throw new Error("PUT 실패");
+      const saved = await res.json();
+      setPosts((prev) => prev.map((p) => (p.id === id ? saved : p)));
     } catch (err) {
       console.error("좋아요 반영 실패:", err);
-      // 3) 롤백
-      setPosts((prev) =>
-        prev.map((p) =>
-          p.id === id ? { ...p, likes: prevLikes, likedBy: target.likedBy } : p
-        )
-      );
-      alert("좋아요 처리에 실패했어요. 잠시 후 다시 시도해주세요.");
+      // 실패 시 롤백
+      setPosts((prev) => prev.map((p) => (p.id === id ? target : p)));
     }
   };
 
+  // ✅ 렌더링
   return (
     <div className="min-h-screen bg-white text-gray-900">
       {/* 상단바 */}
       <header className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b">
         <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3 group">
-            <img src="/mainLogo.png" alt="Taste Link 로고" className="w-auto h-10 object-contain" />
+            <img
+              src="/mainLogo.png"
+              alt="Taste Link 로고"
+              className="w-auto h-10 object-contain"
+            />
             <span className="text-2xl sm:text-3xl font-semibold group-hover:text-rose-400 transition-colors">
               Taste Link <span className="text-gray-500">“취향을 잇다”</span>
             </span>
@@ -155,19 +138,32 @@ export default function TasteLinkPage() {
               모집글 등록
             </button>
 
-            {/* ✅ 로그인/로그아웃 토글 */}
             {isAuthed ? (
-              <div className="flex items-center gap-2 pl-2">
-                <span className="inline-flex items-center gap-1 text-sm text-gray-700">
+              <div className="relative flex items-center gap-2 pl-2" ref={profileRef}>
+                {/* 👤 프로필 버튼 */}
+                <button
+                  onClick={() => setShowProfile((prev) => !prev)}
+                  className="inline-flex items-center gap-1 text-sm text-gray-700 border px-3 py-1 rounded-full hover:bg-gray-50 transition"
+                >
                   <User className="h-4 w-4" />
                   {user?.name || user?.email}
-                </span>
-                <button
-                  onClick={logout}
-                  className="text-sm px-3 py-1 border rounded-full hover:bg-gray-100 transition"
-                >
-                  로그아웃
                 </button>
+
+                {/* 🚀 팝오버 박스 */}
+                {showProfile && (
+                  <div className="absolute top-12 right-0 w-56 bg-white border rounded-2xl shadow-lg p-4 text-sm text-gray-700 z-50 animate-fade-in">
+                    <p className="font-semibold text-gray-800 mb-1">
+                      {user.name || "이름 없음"}
+                    </p>
+                    <p className="text-xs text-gray-500 mb-3">{user.email}</p>
+                    <button
+                      onClick={logout}
+                      className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-1.5 rounded-md text-xs"
+                    >
+                      로그아웃
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <button
@@ -181,7 +177,7 @@ export default function TasteLinkPage() {
         </div>
       </header>
 
-      {/* 🔸 메인 중앙 배너 */}
+      {/* 배너 */}
       <AutoBanner />
 
       {/* 카드 리스트 */}
@@ -190,23 +186,9 @@ export default function TasteLinkPage() {
           <p className="col-span-full text-center text-gray-500">
             불러오는 중...
           </p>
-        ) : currentPosts.length > 0 ? (
-          currentPosts.map((p) => (
-            <Card
-              key={p.id}
-              id={p.id}
-              title={p.title}
-              writer={p.writer}
-              members={p.members}
-              likes={p.likes}
-              img={p.image}
-              paymentMethod={p.paymentMethod}
-              attendees={p.attendees}                                 // ✅ 참석 배열
-              capacity={p.capacity ?? p.maxMembers ?? p.membersLimit}  // ✅ 정원 후보 키들
-              likedBy={p.likedBy}                                      // ✅ 추가
-              uid={uid}                                                // ✅ 추가(버튼 비활성 표시용)
-              onLike={handleLike}                                      // ✅ 좋아요 핸들러
-            />
+        ) : posts.length > 0 ? (
+          posts.slice(indexOfFirst, indexOfLast).map((p) => (
+            <Card key={p.id} {...p} uid={uid} onLike={handleLike} />
           ))
         ) : (
           <p className="col-span-full text-center text-gray-500">
@@ -221,10 +203,11 @@ export default function TasteLinkPage() {
           <button
             key={i}
             onClick={() => setCurrentPage(i + 1)}
-            className={`px-4 py-2 rounded-full border ${currentPage === i + 1
-              ? "bg-rose-400 text-white"
-              : "bg-white text-gray-600 hover:bg-gray-100"
-              } transition`}
+            className={`px-4 py-2 rounded-full border ${
+              currentPage === i + 1
+                ? "bg-rose-400 text-white"
+                : "bg-white text-gray-600 hover:bg-gray-100"
+            } transition`}
           >
             {i + 1}
           </button>
@@ -241,73 +224,34 @@ function Card({
   writer,
   members,
   likes,
-  img,
+  image,
   paymentMethod,
   attendees,
   capacity,
-  likedBy,     // ✅ 추가
-  uid,         // ✅ 추가
+  likedBy,
+  uid,
   onLike,
 }) {
   const navigate = useNavigate();
-
-  // 이미지
-  const imageSrc =
-    typeof img === "string" && img.startsWith("http")
-      ? img
-      : "https://picsum.photos/seed/default/600/400";
-
-  // 숫자 파싱 (예: "8명" → 8)
-  const parsePositiveInt = (raw) => {
-    if (raw === undefined || raw === null) return undefined;
-    const digits = String(raw).replace(/[^\d]/g, "");
-    if (!digits) return undefined;
-    const n = parseInt(digits, 10);
-    return Number.isFinite(n) && n > 0 ? n : undefined;
-  };
-
-  // 참석 인원 계산 (attendees 우선, 없으면 members를 참석 수로 사용)
   const attArr = Array.isArray(attendees) ? attendees : [];
-  const currentAttendeeCount =
-    attArr.length > 0 ? attArr.length : Number(members || 0);
+  const currentAttendeeCount = attArr.length || 0;
+  const imageSrc =
+    typeof image === "string" && image.startsWith("http")
+      ? image
+      : "https://picsum.photos/seed/default/600/400";
+  const isFull = capacity ? currentAttendeeCount >= capacity : false;
 
-  // ⚠️ 정원 추론: capacity 우선, 없으면 members를 정원으로 간주(단, 참석 수보다 크거나 같을 때만)
-  let parsedCapacity = parsePositiveInt(capacity);
-  if (parsedCapacity == null) {
-    const membersAsCap = parsePositiveInt(members);
-    if (membersAsCap && membersAsCap >= currentAttendeeCount) {
-      parsedCapacity = membersAsCap;
-    }
-  }
-
-  // 꽉 찼는지
-  const isFull = parsedCapacity ? currentAttendeeCount >= parsedCapacity : false;
-
-  // 이미 좋아요 눌렀는지(버튼 상태 표시용)
-  const already =
-    (uid && Array.isArray(likedBy) && likedBy.includes(uid)) || false;
+  const already = uid && Array.isArray(likedBy) && likedBy.includes(uid);
 
   return (
     <article
       onClick={() => navigate(`/post/${id}`)}
-      className="relative cursor-pointer rounded-xl border overflow-hidden hover:shadow-md transition-shadow bg-white"
+      className="relative cursor-pointer rounded-xl border overflow-hidden hover:shadow-md transition bg-white"
     >
-      {/* 이미지 */}
       <div className="w-full aspect-[4/3] overflow-hidden bg-gray-100">
-        <img
-          src={imageSrc}
-          alt={title}
-          loading="lazy"
-          className="w-full h-auto block object-cover"
-          onError={(e) => {
-            if (!e.currentTarget.src.includes("default")) {
-              e.currentTarget.src = "https://picsum.photos/seed/default/600/400";
-            }
-          }}
-        />
+        <img src={imageSrc} alt={title} className="w-full h-auto object-cover" />
       </div>
 
-      {/* 결제 방식 배지 */}
       {paymentMethod && (
         <div className="p-4 pb-0">
           <div className="inline-block bg-white border px-3 py-1 rounded-full text-[11px] font-semibold text-gray-700 shadow-sm">
@@ -316,44 +260,30 @@ function Card({
         </div>
       )}
 
-      {/* 본문 */}
       <div className="p-4 pt-2">
         <h3 className="text-base font-semibold">{title}</h3>
         <p className="text-sm text-gray-500 mt-1">작성자: {writer}</p>
+        <p className="text-sm text-gray-700 mt-1">
+          👥 참석 <b>{currentAttendeeCount}명</b> / 모집{" "}
+          <b>{capacity ?? 10}명</b>
+        </p>
 
-        {/* ✅ 모집 인원 + 참석 인원 함께 표시 */}
-        {parsedCapacity ? (
-          <p className="text-sm text-gray-700 mt-1">
-            📌 모집 인원: <b>{parsedCapacity}명</b> · 👥 참석 인원: <b>{currentAttendeeCount}명</b>
-          </p>
-        ) : (
-          <p className="text-sm text-gray-700 mt-1">
-            👥 참석 인원: <b>{currentAttendeeCount}명</b>
-          </p>
-        )}
-
-        {/* ✅ 좋아요 영역: 버튼 + 실시간 카운트 */}
         <div className="flex items-center justify-between mt-2 text-sm text-gray-700">
           <button
             onClick={(e) => {
-              e.stopPropagation(); // 카드 네비게이션 방지
-              if (!already) onLike?.(id);
+              e.stopPropagation();
+              onLike?.(id);
             }}
-            disabled={already}
-            className={`inline-flex items-center gap-1 px-3 py-1 rounded-full border active:scale-[0.98] transition ${
-              already ? "opacity-60 cursor-not-allowed" : "hover:bg-gray-50"
+            className={`inline-flex items-center gap-1 px-3 py-1 rounded-full border hover:bg-gray-50 active:scale-[0.98] transition ${
+              already ? "bg-rose-50 border-rose-300 text-rose-600" : ""
             }`}
-            aria-label="좋아요"
           >
-            <span>❤️</span>
-            <span>{already ? "이미 좋아요" : "좋아요"}</span>
+            ❤️ {already ? "좋아요" : "좋아요"}
           </button>
-
-          <span className="select-none">❤️ {parseInt(likes ?? 0, 10) || 0}</span>
+          <span>❤️ {likes ?? 0}</span>
         </div>
       </div>
 
-      {/* ✅ 정원 꽉 찼을 때 '마감' 뱃지 */}
       {isFull && (
         <div className="absolute top-3 right-3">
           <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500 text-white shadow">
