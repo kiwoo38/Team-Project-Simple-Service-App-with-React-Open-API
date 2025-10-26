@@ -1,81 +1,87 @@
-import React, { useState } from "react";
+// src/components1/PostCreatePage.jsx
+import React from "react";
+import axios from "axios";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  Button,
+  Stack,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Divider,
+} from "@mui/material";
+import { useForm, Controller } from "react-hook-form";
 
 const API_URL = "https://68f1a345b36f9750dee9d045.mockapi.io/api/v1/posts";
 
 export default function PostCreatePage() {
-  const [form, setForm] = useState({
-    writer: "",
-    title: "",
-    members: "",
-    likes: 0,          // ✅ 기본 0
-    createdAt: "",
-    eventDate: "",     // ✅ 추가
-    endAt: "",         // ✅ 추가
-    paymentMethod: "",
-    image: "",
+  const {
+    control,
+    handleSubmit,
+    watch,
+    setError,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    defaultValues: {
+      writer: "",
+      title: "",
+      members: "",
+      likes: 0,
+      createdAt: "",
+      eventDate: "",
+      endAt: "",
+      paymentMethod: "",
+      image: "",
+    },
+    mode: "onChange",
   });
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+  const onSubmit = async (values) => {
+    // 숫자/이미지 정제
+    const members = values.members === "" ? 1 : Math.max(1, Number(values.members));
+    const likes = values.likes === "" ? 0 : Math.max(0, Number(values.likes));
 
-    // ✅ 숫자 필드 정규화
-    if (name === "members" || name === "likes") {
-      const num = value === "" ? "" : Math.max(0, Number(value));
-      setForm({ ...form, [name]: num });
+    let image = (values.image || "").trim().replace(/^"+|"+$/g, "");
+    if (image && !image.startsWith("http")) image = "https://" + image;
+    if (!image) image = "https://picsum.photos/seed/default/600/400";
+
+    // 날짜 검증
+    const today0 = new Date(); today0.setHours(0, 0, 0, 0);
+    const ev  = values.eventDate ? new Date(values.eventDate) : null;
+    const end = values.endAt ? new Date(values.endAt) : null;
+
+    if (ev && ev < today0) {
+      setError("eventDate", { message: "모임 날짜(eventDate)는 오늘 이후여야 해." });
       return;
     }
-
-    // ✅ 이미지 입력 정리
-    if (name === "image") {
-      let clean = value.trim();
-      clean = clean.replace(/^"+|"+$/g, "");
-      if (clean && !clean.startsWith("http")) clean = "https://" + clean;
-      setForm({ ...form, [name]: clean });
+    if (end && ev && end > ev) {
+      setError("endAt", { message: "모집 마감일(endAt)은 모임 날짜(eventDate) 이전/동일이어야 해." });
       return;
-    }
-
-    // ✅ 날짜/기타 공통
-    setForm({ ...form, [name]: value });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    // ✅ 날짜/로직 검증
-    const today0 = new Date();
-    today0.setHours(0, 0, 0, 0);
-    if (form.eventDate) {
-      const ev = new Date(form.eventDate);
-      if (ev < today0) return alert("모임 날짜(eventDate)는 오늘 이후여야 해.");
-    }
-    if (form.endAt && form.eventDate) {
-      const end = new Date(form.endAt);
-      const ev  = new Date(form.eventDate);
-      if (end > ev) return alert("모집 마감일(endAt)은 모임 날짜(eventDate) 이전/동일이어야 해.");
     }
 
     const safeForm = {
-      ...form,
-      // 숫자 보정
-      members: form.members === "" ? 1 : Number(form.members),
-      likes: form.likes === "" ? 0 : Number(form.likes),
-      // 빈 이미지 기본값
-      image: form.image || "https://picsum.photos/seed/default/600/400",
-      // 날짜 ISO로 저장 (mockapi date 필드 호환)
+      ...values,
+      members,
+      likes,
+      image,
       createdAt: new Date().toISOString(),
-      eventDate: form.eventDate ? new Date(form.eventDate).toISOString() : null,
-      endAt: form.endAt ? new Date(form.endAt).toISOString() : null,
+      eventDate: ev ? ev.toISOString() : null,
+      endAt: end ? end.toISOString() : null,
     };
 
     try {
-      const res = await fetch(API_URL, {
-        method: "POST",
+      const { status } = await axios.post(API_URL, safeForm, {
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(safeForm),
       });
-
-      if (res.ok) {
+      if (status >= 200 && status < 300) {
         alert("모집글이 성공적으로 등록되었습니다!");
+        reset();
         window.location.href = "/";
       } else {
         alert("등록 중 오류가 발생했습니다.");
@@ -87,99 +93,190 @@ export default function PostCreatePage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto mt-12 p-6 border rounded-xl">
-      <h2 className="text-2xl font-bold mb-6 text-center">✍️ 모집글 등록</h2>
+    <Box maxWidth={840} mx="auto" mt={6} px={2}>
+      <Card elevation={2} sx={{ borderRadius: 3 }}>
+        <CardContent>
+          <Typography variant="h5" fontWeight={700} align="center" gutterBottom>
+            ✍️ 모집글 등록
+          </Typography>
 
-      <form onSubmit={handleSubmit} className="grid gap-4">
-        <input
-          type="text"
-          name="writer"
-          placeholder="작성자"
-          value={form.writer}
-          onChange={handleChange}
-          className="border p-2 rounded"
-          required
-        />
+          <Box component="form" onSubmit={handleSubmit(onSubmit)}>
+            <Stack spacing={2.5}>
+              <Controller
+                name="writer"
+                control={control}
+                rules={{ required: "작성자는 필수입니다." }}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label="작성자"
+                    error={!!errors.writer}
+                    helperText={errors.writer?.message}
+                    fullWidth
+                    required
+                  />
+                )}
+              />
 
-        <input
-          type="text"
-          name="title"
-          placeholder="제목"
-          value={form.title}
-          onChange={handleChange}
-          className="border p-2 rounded"
-          required
-        />
+              <Controller
+                name="title"
+                control={control}
+                rules={{ required: "제목은 필수입니다." }}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label="제목"
+                    error={!!errors.title}
+                    helperText={errors.title?.message}
+                    fullWidth
+                    required
+                  />
+                )}
+              />
 
-        <input
-          type="number"
-          name="members"
-          placeholder="모집 인원 (숫자)"
-          value={form.members}
-          onChange={handleChange}
-          className="border p-2 rounded"
-          min="1"
-          required
-        />
+              <Controller
+                name="members"
+                control={control}
+                rules={{
+                  required: "모집 인원은 필수입니다.",
+                  validate: (v) => v === "" || Number(v) >= 1 || "1명 이상이어야 합니다.",
+                }}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    type="number"
+                    label="모집 인원 (숫자)"
+                    inputProps={{ min: 1 }}
+                    error={!!errors.members}
+                    helperText={errors.members?.message}
+                    fullWidth
+                    required
+                  />
+                )}
+              />
 
-        {/* ✅ 모집 마감일 */}
-        <label className="text-sm font-medium">모집 마감일 (endAt)</label>
-        <input
-          type="date"
-          name="endAt"
-          value={form.endAt}
-          onChange={handleChange}
-          className="border p-2 rounded"
-        />
+              <Divider sx={{ my: 1 }} />
 
-        {/* ✅ 모임 날짜 */}
-        <label className="text-sm font-medium">모임 날짜 (eventDate)</label>
-        <input
-          type="date"
-          name="eventDate"
-          value={form.eventDate}
-          onChange={handleChange}
-          className="border p-2 rounded"
-        />
+              <Controller
+                name="endAt"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    type="date"
+                    label="모집 마감일 (endAt)"
+                    InputLabelProps={{ shrink: true }}
+                    error={!!errors.endAt}
+                    helperText={errors.endAt?.message}
+                    fullWidth
+                  />
+                )}
+              />
 
-        <select
-          name="paymentMethod"
-          value={form.paymentMethod}
-          onChange={handleChange}
-          className="border p-2 rounded"
-          required
-        >
-          <option value="">결제 방식 선택</option>
-          <option value="n분의1">n분의1</option>
-          <option value="각자결제">각자결제</option>
-          <option value="선결제">선결제</option>
-        </select>
+              <Controller
+                name="eventDate"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    type="date"
+                    label="모임 날짜 (eventDate)"
+                    InputLabelProps={{ shrink: true }}
+                    error={!!errors.eventDate}
+                    helperText={errors.eventDate?.message}
+                    fullWidth
+                  />
+                )}
+              />
 
-        {/* ✅ 이미지 주소 입력 + 미리보기 */}
-        <input
-          type="text"
-          name="image"
-          placeholder="이미지 주소 (예: https://cdn.pixabay.com/...jpg)"
-          value={form.image}
-          onChange={handleChange}
-          className="border p-2 rounded"
-        />
-        {form.image && (
-          <img
-            src={form.image}
-            alt="미리보기"
-            className="w-full max-h-60 object-cover rounded border"
-            onError={(e) => (e.currentTarget.style.display = "none")}
-          />
-        )}
+              {/* ▼▼▼ 겹침 해결된 Select (라벨-셀렉트 id 매칭) ▼▼▼ */}
+              <FormControl fullWidth required error={!!errors.paymentMethod}>
+                <InputLabel id="paymentMethod-label">결제 방식</InputLabel>
+                <Controller
+                  name="paymentMethod"
+                  control={control}
+                  rules={{ required: "결제 방식을 선택하세요." }}
+                  render={({ field }) => (
+                    <Select
+                      {...field}
+                      labelId="paymentMethod-label"   // InputLabel과 동일
+                      id="paymentMethod"              // 고유 id
+                      label="결제 방식"                // label 명시
+                      displayEmpty
+                      renderValue={(selected) =>
+                        selected ? (
+                          selected
+                        ) : (
+                          <span style={{ color: "rgba(0,0,0,0.38)" }}>
+                            결제 방식 선택
+                          </span>
+                        )
+                      }
+                    >
+                      <MenuItem value="">
+                        <em>선택</em>
+                      </MenuItem>
+                      <MenuItem value="n분의1">n분의1</MenuItem>
+                      <MenuItem value="각자결제">각자결제</MenuItem>
+                      <MenuItem value="선결제">선결제</MenuItem>
+                    </Select>
+                  )}
+                />
+                {errors.paymentMethod && (
+                  <Typography variant="caption" color="error">
+                    {errors.paymentMethod.message}
+                  </Typography>
+                )}
+              </FormControl>
+              {/* ▲▲▲ */}
 
-        <button
-          type="submit"
-          className="mt-4 bg-rose-400 hover:bg-rose-500 text-white py-2 rounded transition"
-        >
-          등록하기
-        </button>
-      </form>
-    </div>
+              <Controller
+                name="image"
+                control={control}
+                render={({ field: { value, onChange, ...rest } }) => (
+                  <TextField
+                    {...rest}
+                    value={value}
+                    onChange={(e) => {
+                      let v = e.target.value.trim().replace(/^"+|"+$/g, "");
+                      if (v && !v.startsWith("http")) v = "https://" + v;
+                      onChange(v);
+                    }}
+                    label="이미지 주소 (예: https://cdn.pixabay.com/...jpg)"
+                    fullWidth
+                  />
+                )}
+              />
+
+              {watch("image") && (
+                <Box
+                  component="img"
+                  src={watch("image")}
+                  alt="미리보기"
+                  sx={{
+                    width: "100%",
+                    maxHeight: 260,
+                    objectFit: "cover",
+                    borderRadius: 2,
+                    border: "1px solid rgba(0,0,0,0.12)",
+                  }}
+                  onError={(e) => (e.currentTarget.style.display = "none")}
+                />
+              )}
+
+              <Button
+                type="submit"
+                variant="contained"
+                size="large"
+                disabled={isSubmitting}
+                sx={{ py: 1.25 }}
+              >
+                {isSubmitting ? "등록 중..." : "등록하기"}
+              </Button>
+            </Stack>
+          </Box>
+        </CardContent>
+      </Card>
+    </Box>
   );
 }
